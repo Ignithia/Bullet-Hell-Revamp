@@ -201,8 +201,17 @@ export class Boss extends Enemy {
         }
       }
       if (this.segments.length > 0) {
-        this.tail.x = this.segments[this.segments.length - 1].x;
-        this.tail.y = this.segments[this.segments.length - 1].y;
+        const lastSeg = this.segments[this.segments.length - 1];
+        let tailOffset = 55;
+        let tailAngle = 0;
+        if (this.segments.length > 1) {
+          let prev = this.segments[this.segments.length - 2];
+          tailAngle = Math.atan2(lastSeg.y - prev.y, lastSeg.x - prev.x);
+        } else {
+          tailAngle = Math.atan2(lastSeg.y - this.y, lastSeg.x - this.x);
+        }
+        this.tail.x = lastSeg.x + Math.cos(tailAngle) * tailOffset;
+        this.tail.y = lastSeg.y + Math.sin(tailAngle) * tailOffset;
       }
     }
   }
