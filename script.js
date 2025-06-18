@@ -10,7 +10,7 @@ function preload() {
   // Load enemy sprites
   assets.defaultEnemySprite = loadImage("./assets/sprites/enemies/enemy.gif");
   assets.fastEnemySprite = loadImage("./assets/sprites/enemies/fast.gif");
-  assets.tankEnemySprite = loadImage("./assets/sprites/enemies/Tank.gif");
+  assets.tankEnemySprite = loadImage("./assets/sprites/enemies/tank.gif");
   assets.bomberEnemySprite = loadImage("./assets/sprites/enemies/bomber.png");
   assets.laserDroneEnemySprite = loadImage(
     "./assets/sprites/enemies/laserdrone.gif"
@@ -26,9 +26,9 @@ function preload() {
   );
 
   // Load power-up sprites
-  assets.tripleshotSprite = loadImage("./assets/sprites/powerups/Triple.png");
+  assets.tripleshotSprite = loadImage("./assets/sprites/powerups/triple.png");
   assets.invincibilitySprite = loadImage(
-    "./assets/sprites/powerups/Invincibility.png"
+    "./assets/sprites/powerups/invincibility.png"
   );
   assets.smartBombSprite = loadImage("./assets/sprites/powerups/bomb.gif");
   assets.speedBoostSprite = loadImage(
@@ -45,7 +45,7 @@ function preload() {
   assets.crimsonwingSprite = loadImage(
     "./assets/sprites/bosses/crimsonwing.gif"
   );
-  assets.azureSprite = loadImage("./assets/sprites/bosses/Azure.gif");
+  assets.azureSprite = loadImage("./assets/sprites/bosses/azure.gif");
   assets.celestialguardianSprite = loadImage(
     "./assets/sprites/bosses/celestialguardian.gif"
   );
