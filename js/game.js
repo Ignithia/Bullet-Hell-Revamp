@@ -311,6 +311,14 @@ export class Game {
         this.enemies.forEach((enemy) => {
           this.score += enemy.scoreValue;
         });
+        this.enemyBullets = this.enemyBullets.filter(
+          (b) =>
+            !(
+              b.isExpanding &&
+              b.ownerBossId &&
+              b.ownerBossId.bossType === "CelestialGuardian"
+            )
+        );
         this.enemies = [];
         this.bossActive = false;
         this.handleLevelProgression();
