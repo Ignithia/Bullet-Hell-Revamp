@@ -35,7 +35,7 @@ function preload() {
     "./assets/sprites/powerups/speedboost.png"
   );
   assets.recoverySprite = loadImage(
-    "./assets/sprites/powerups/Heal-Repair.png"
+    "./assets/sprites/powerups/heal-repair.png"
   );
 
   // Load boss sprites
