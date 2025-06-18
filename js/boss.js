@@ -779,7 +779,7 @@ export class Boss extends Enemy {
         }
         push();
         translate(this.tail.x, this.tail.y);
-        rotate(tailAngle - Math.PI / 2);
+        rotate(tailAngle - Math.PI / 2 + Math.PI);
         if (this.assets && this.assets.cosmicSerpentTailSprite) {
           image(
             this.assets.cosmicSerpentTailSprite,
@@ -805,7 +805,7 @@ export class Boss extends Enemy {
           this.segmentTrail[1].x - this.x
         );
       }
-      rotate(headAngle - Math.PI / 2);
+      rotate(headAngle - Math.PI / 2 + Math.PI);
       imageMode(CENTER);
       if (this.assets && this.assets.cosmicserpentheadSprite) {
         image(this.assets.cosmicserpentheadSprite, 0, 0, this.size, this.size);
