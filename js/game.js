@@ -199,42 +199,42 @@ export class Game {
     drawText(
       "Bullet Hell Game",
       width / 2,
-      height / 2 - 90,
-      54,
+      height / 2 - 60,
+      32,
       CENTER,
       CENTER
     );
     drawText(
       "Press ENTER to Start",
       width / 2,
-      height / 2 - 30,
-      32,
+      height / 2 - 10,
+      18,
       CENTER,
       CENTER
     );
-    drawText("Controls:", width / 2, height / 2 + 30, 26, CENTER, CENTER);
+    drawText("Controls:", width / 2, height / 2 + 20, 16, CENTER, CENTER);
     drawText(
       "Arrow Keys: Move",
       width / 2,
-      height / 2 + 60,
-      22,
+      height / 2 + 38,
+      13,
       CENTER,
       CENTER
     );
-    drawText("Space: Shoot", width / 2, height / 2 + 90, 22, CENTER, CENTER);
+    drawText("Space: Shoot", width / 2, height / 2 + 54, 13, CENTER, CENTER);
     drawText(
       `Version: ${this.version}`,
       width / 2,
-      height - 40,
-      18,
+      height - 18,
+      11,
       CENTER,
       CENTER
     );
     drawText(
       `Personal Best: ${this.highscoreSystem.localBest}`,
       width / 2,
-      height / 2 + 130,
-      28,
+      height / 2 + 80,
+      16,
       CENTER,
       CENTER
     );
@@ -247,8 +247,8 @@ export class Game {
     drawText(
       "Game Over",
       width / 2,
-      height / 2 - 80,
-      54,
+      height / 2 - 40,
+      32,
       CENTER,
       CENTER,
       [255, 0, 0]
@@ -256,24 +256,24 @@ export class Game {
     drawText(
       `Score: ${this.score}`,
       width / 2,
-      height / 2 - 20,
-      32,
+      height / 2 - 5,
+      18,
       CENTER,
       CENTER
     );
     drawText(
       "Press R to Restart",
       width / 2,
-      height / 2 + 40,
-      28,
+      height / 2 + 22,
+      16,
       CENTER,
       CENTER
     );
     drawText(
       `Personal Best: ${this.highscoreSystem.localBest}`,
       width / 2,
-      height / 2 + 90,
-      28,
+      height / 2 + 44,
+      16,
       CENTER,
       CENTER
     );
@@ -321,12 +321,12 @@ export class Game {
 
   drawPauseScreen() {
     drawBackground(30, this.assets, this.backgroundY1, this.backgroundY2);
-    drawText("Paused", width / 2, height / 2, 54, CENTER, CENTER);
+    drawText("Paused", width / 2, height / 2, 32, CENTER, CENTER);
     drawText(
       "Press 'P' to Resume",
       width / 2,
-      height / 2 + 60,
-      32,
+      height / 2 + 30,
+      18,
       CENTER,
       CENTER
     );
@@ -772,13 +772,13 @@ export class Game {
 
   displayHUD() {
     textAlign(LEFT, CENTER);
-    let y = 30;
-    const line = 28;
-    drawText(`Score: ${this.score}`, 30, y, 22, LEFT, CENTER);
+    let y = 18;
+    const line = 18;
+    drawText(`Score: ${this.score}`, 18, y, 14, LEFT, CENTER);
     y += line;
-    drawText(`Wave: ${this.wave}`, 30, y, 22, LEFT, CENTER);
+    drawText(`Wave: ${this.wave}`, 18, y, 14, LEFT, CENTER);
     y += line;
-    drawText(`Damage: ${this.player.damage}`, 30, y, 22, LEFT, CENTER);
+    drawText(`Damage: ${this.player.damage}`, 18, y, 14, LEFT, CENTER);
     y += line;
     let activePowerUps = [];
     if (this.player.tripleShot) activePowerUps.push("Triple Shot");
@@ -786,49 +786,49 @@ export class Game {
     if (this.player.speedBoost) activePowerUps.push("Speed Boost");
     let powerUpText =
       activePowerUps.length > 0 ? activePowerUps.join(", ") : "None";
-    drawText(`Power-Up: ${powerUpText}`, 30, y, 22, LEFT, CENTER);
+    drawText(`Power-Up: ${powerUpText}`, 18, y, 14, LEFT, CENTER);
     y += line;
-    drawText(`Fire Rate: ${this.playerFireRate} ms`, 30, y, 22, LEFT, CENTER);
+    drawText(`Fire Rate: ${this.playerFireRate} ms`, 18, y, 14, LEFT, CENTER);
     y += line;
-    drawText(`Speed: ${this.playerSpeed} px/s`, 30, y, 22, LEFT, CENTER);
+    drawText(`Speed: ${this.playerSpeed} px/s`, 18, y, 14, LEFT, CENTER);
     y += line;
     drawText(
       `Currency: $${this.playerProgress.currency}`,
-      30,
+      18,
       y,
-      22,
+      14,
       LEFT,
       CENTER
     );
     y += line;
     drawText(
       `EXP: ${this.playerProgress.exp} / ${this.playerProgress.expToNext}`,
-      30,
+      18,
       y,
-      22,
+      14,
       LEFT,
       CENTER
     );
     y += line;
     drawText(
       `Player Level: ${this.playerProgress.level}`,
-      30,
+      18,
       y,
-      22,
+      14,
       LEFT,
       CENTER
     );
 
-    y += 18;
+    y += 10;
     fill(60);
-    rect(30, y, 180, 18, 6);
+    rect(18, y, 110, 10, 4);
     fill(0, 220, 0);
-    rect(30, y, (this.player.health / this.maxPlayerHealth) * 180, 18, 6);
+    rect(18, y, (this.player.health / this.maxPlayerHealth) * 110, 10, 4);
     stroke(255);
     noFill();
-    rect(30, y, 180, 18, 6);
+    rect(18, y, 110, 10, 4);
     noStroke();
-    y += 28;
+    y += 16;
   }
 
   handleScoreGain() {
@@ -871,8 +871,8 @@ export class Game {
     drawText(
       "Choose an Upgrade:",
       width / 2,
-      height / 2 - 90,
-      38,
+      height / 2 - 60,
+      24,
       CENTER,
       CENTER
     );
@@ -900,8 +900,8 @@ export class Game {
       drawText(
         upgradeText,
         width / 2,
-        height / 2 - 30 + index * 40,
-        32,
+        height / 2 - 10 + index * 24,
+        18,
         CENTER,
         CENTER
       );
@@ -911,8 +911,8 @@ export class Game {
       drawText(
         "All upgrades maxed! Press any key to continue.",
         width / 2,
-        height / 2 + 240,
-        24,
+        height / 2 + 120,
+        14,
         CENTER,
         CENTER
       );
@@ -920,8 +920,8 @@ export class Game {
       drawText(
         "Press 1-6 to select an upgrade and continue",
         width / 2,
-        height / 2 + 240,
-        24,
+        height / 2 + 120,
+        14,
         CENTER,
         CENTER
       );
@@ -933,35 +933,35 @@ export class Game {
     drawText(
       "Boss Defeated! Choose a Boss Upgrade:",
       width / 2,
-      height / 2 - 120,
-      38,
+      height / 2 - 70,
+      22,
       CENTER,
       CENTER
     );
     this.bossUpgradeChoices.forEach((upg, i) => {
-      let y = height / 2 - 30 + i * 70;
+      let y = height / 2 - 10 + i * 38;
       let txt = `${i + 1}: ${upg.name} [${upg.rarity.toUpperCase()}]\n${
         upg.effect
       } | Drawback: ${upg.drawback}`;
-      drawText(txt, width / 2, y, 26, CENTER, CENTER);
+      drawText(txt, width / 2, y, 14, CENTER, CENTER);
     });
     drawText(
       "Press 1, 2, or 3 to select",
       width / 2,
-      height / 2 + 180,
-      24,
+      height / 2 + 90,
+      14,
       CENTER,
       CENTER
     );
   }
 
   drawBossUpgradesHUD() {
-    let y = height - 60;
+    let y = height - 28;
     textAlign(LEFT, CENTER);
-    textSize(18);
+    textSize(12);
     fill(255, 220, 80, 180);
     let upgradesText = this.bossUpgrades.map((u) => u.name).join(", ");
-    text("Boss Upgrades: " + upgradesText, 30, y);
+    text("Boss Upgrades: " + upgradesText, 18, y);
   }
 
   keyPressed(event) {
