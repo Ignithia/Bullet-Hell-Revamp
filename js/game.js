@@ -11,6 +11,18 @@ import { Boss, BlackHole } from "./boss.js";
 import { Bullet } from "./bullet.js";
 import { PowerUp } from "./powerup.js";
 import { drawBackground, drawText } from "./utils.js";
+import { PlayerProgress } from "./PlayerProgress.js";
+import { HighscoreSystem } from "./HighscoreSystem.js";
+import { MovementAbilities } from "./MovementAbilities.js";
+import { ShopShip } from "./ShopShip.js";
+import { upgradeTree } from "./upgradeTree.js";
+import {
+  PowerUpTypes,
+  PowerUpRarities,
+  getRandomPowerUp,
+} from "./PowerUpTypes.js";
+import { BossUpgrades, getBossUpgradeChoices } from "./BossUpgrades.js";
+import { spawnWave } from "./enemyWaveSpawner.js";
 
 const upgrades = [
   "Speed Up",
@@ -29,7 +41,7 @@ export class Game {
   constructor(assets) {
     this.state = "start";
     this.assets = assets;
-    this.playerSpeed = 200;
+    this.playerSpeed = 300;
     this.playerFireRate = 300;
     this.playerHealth = 10;
     this.maxPlayerHealth = 10;
@@ -49,20 +61,81 @@ export class Game {
     this.deltaTime = 16.67;
     this.backgroundY1 = 600;
     this.backgroundY2 = -600;
-    this.version = "1.9.1";
+    this.version = "2.2.0";
     this.tripleShotTimeout = null;
     this.invincibilityTimeout = null;
     this.shieldTimeout = null;
     this.speedBoostTimeout = null;
     this.player.shielded = false;
     this.player.speedBoost = false;
+    this.playerProgress = new PlayerProgress();
+    this.highscoreSystem = new HighscoreSystem();
+    this.movementAbilities = new MovementAbilities();
+    this.shopShip = null;
+    this.upgradePath = { stats: {}, weapons: {} };
+    this.wave = 0;
+    this.waveInProgress = false;
+    this.waveBannerTimer = 0;
+    this.bossWaveInterval = 5;
+
+    this.keys = {};
+
+    this.lastFrameTime = 0;
+    this.targetFrameTime = 1000 / 60;
+
+    this.bulletPool = [];
+    this.enemyBulletPool = [];
+    this.maxPoolSize = 100;
+    this.initializeBulletPools();
+    this.waveClearedTime = null;
+    this.bossesDefeated = 0;
+  }
+
+  initializeBulletPools() {
+    for (let i = 0; i < this.maxPoolSize; i++) {
+      this.bulletPool.push(this.createBullet(0, 0, 0, 0, 5, null, false));
+      this.enemyBulletPool.push(this.createBullet(0, 0, 0, 0, 5, null, true));
+    }
+  }
+
+  createBullet(x, y, damage, speed, size, angle, isEnemy) {
+    return new Bullet(x, y, damage, speed, size, angle, this.assets, isEnemy);
+  }
+
+  getBulletFromPool(isEnemy = false) {
+    const pool = isEnemy ? this.enemyBulletPool : this.bulletPool;
+    if (pool.length > 0) {
+      return pool.pop();
+    }
+    return this.createBullet(0, 0, 0, 0, 5, null, isEnemy);
+  }
+
+  returnBulletToPool(bullet) {
+    const pool = bullet.isEnemy ? this.enemyBulletPool : this.bulletPool;
+    if (pool.length < this.maxPoolSize) {
+      pool.push(bullet);
+    }
   }
 
   setup() {
     this.player = new Player(this.assets, this.playerSpeed);
+    this.playerProgress = new PlayerProgress();
+    this.highscoreSystem = new HighscoreSystem();
+    this.movementAbilities = new MovementAbilities();
+    this.upgradePath = { stats: {}, weapons: {} };
+    this.wave = 0;
+    this.waveInProgress = false;
+    this.waveBannerTimer = 0;
+    this.level = 0;
   }
 
   draw() {
+    const currentTime = millis();
+    if (currentTime - this.lastFrameTime < this.targetFrameTime) {
+      return;
+    }
+    this.lastFrameTime = currentTime;
+
     this.deltaTime = 1000 / frameRate();
     switch (this.state) {
       case "start":
@@ -81,6 +154,27 @@ export class Game {
         this.drawPauseScreen();
         break;
     }
+    if (
+      this.state === "play" ||
+      this.state === "upgrade" ||
+      this.state === "pause"
+    ) {
+      this.displayHUD();
+    }
+    if (this.waveBannerTimer > 0) {
+      this.drawWaveBanner();
+    }
+  }
+
+  drawWaveBanner() {
+    push();
+    textAlign(CENTER, CENTER);
+    textSize(64);
+    fill(255, 220, 0, 220);
+    text(`Wave ${this.wave}`, width / 2, height / 2 - 200);
+    pop();
+    this.waveBannerTimer -= this.deltaTime;
+    if (this.waveBannerTimer < 0) this.waveBannerTimer = 0;
   }
 
   drawStartScreen() {
@@ -89,27 +183,42 @@ export class Game {
     drawText(
       "Bullet Hell Game",
       width / 2,
-      height / 2 - 50,
+      height / 2 - 90,
+      54,
+      CENTER,
+      CENTER
+    );
+    drawText(
+      "Press ENTER to Start",
+      width / 2,
+      height / 2 - 30,
       32,
       CENTER,
       CENTER
     );
-    drawText("Press ENTER to Start", width / 2, height / 2, 20, CENTER, CENTER);
-    drawText("Controls:", width / 2, height / 2 + 50, 16, CENTER, CENTER);
+    drawText("Controls:", width / 2, height / 2 + 30, 26, CENTER, CENTER);
     drawText(
       "Arrow Keys: Move",
       width / 2,
-      height / 2 + 70,
-      16,
+      height / 2 + 60,
+      22,
       CENTER,
       CENTER
     );
-    drawText("Space: Shoot", width / 2, height / 2 + 90, 16, CENTER, CENTER);
+    drawText("Space: Shoot", width / 2, height / 2 + 90, 22, CENTER, CENTER);
     drawText(
       `Version: ${this.version}`,
       width / 2,
-      height - 30,
-      16,
+      height - 40,
+      18,
+      CENTER,
+      CENTER
+    );
+    drawText(
+      `Personal Best: ${this.highscoreSystem.localBest}`,
+      width / 2,
+      height / 2 + 130,
+      28,
       CENTER,
       CENTER
     );
@@ -122,32 +231,68 @@ export class Game {
     drawText(
       "Game Over",
       width / 2,
-      height / 2 - 50,
-      32,
+      height / 2 - 80,
+      54,
       CENTER,
       CENTER,
       [255, 0, 0]
     );
-    drawText(`Score: ${this.score}`, width / 2, height / 2, 20, CENTER, CENTER);
+    drawText(
+      `Score: ${this.score}`,
+      width / 2,
+      height / 2 - 20,
+      32,
+      CENTER,
+      CENTER
+    );
     drawText(
       "Press R to Restart",
       width / 2,
-      height / 2 + 50,
-      20,
+      height / 2 + 40,
+      28,
+      CENTER,
+      CENTER
+    );
+    drawText(
+      `Personal Best: ${this.highscoreSystem.localBest}`,
+      width / 2,
+      height / 2 + 90,
+      28,
       CENTER,
       CENTER
     );
     imageMode(CENTER);
   }
 
+  handlePlayerMovement() {
+    const maxSpeed = this.player.speed;
+    let moveX = 0;
+    let moveY = 0;
+
+    if (this.keys["ArrowLeft"] || this.keys["KeyA"]) moveX -= 1;
+    if (this.keys["ArrowRight"] || this.keys["KeyD"]) moveX += 1;
+    if (this.keys["ArrowUp"] || this.keys["KeyW"]) moveY -= 1;
+    if (this.keys["ArrowDown"] || this.keys["KeyS"]) moveY += 1;
+
+    if (moveX !== 0 && moveY !== 0) {
+      moveX *= 0.707;
+      moveY *= 0.707;
+    }
+
+    this.player.x += (moveX * maxSpeed * this.deltaTime) / 1000;
+    this.player.y += (moveY * maxSpeed * this.deltaTime) / 1000;
+
+    this.player.x = constrain(this.player.x, 0, width);
+    this.player.y = constrain(this.player.y, 0, height);
+  }
+
   playGame() {
     drawBackground(30, this.assets, this.backgroundY1, this.backgroundY2);
-    this.player.update();
+    this.handlePlayerMovement();
     this.player.show();
     this.handleBullets();
     this.handleEnemyBullets();
     this.handleEnemies();
-    this.spawnEnemies();
     this.handlePowerUps();
     this.spawnPowerUps();
     this.displayHUD();
@@ -155,98 +300,75 @@ export class Game {
     this.handleLevelProgression();
     this.handleShooting();
     this.checkGameOver();
+    this.handleWaveLogic();
   }
 
-  handleScoreGain() {
-    if (this.level < 50) {
-      NormalEnemy.scoreValue = 30;
-      TankShieldedEnemy.scoreValue = 60;
-      FastEnemy.scoreValue = 15;
-    } else if (this.level < 100) {
-      NormalEnemy.scoreValue = 60;
-      TankShieldedEnemy.scoreValue = 120;
-      FastEnemy.scoreValue = 30;
-    } else if (this.level < 150) {
-      NormalEnemy.scoreValue = 120;
-      TankShieldedEnemy.scoreValue = 240;
-      FastEnemy.scoreValue = 60;
-    } else {
-      NormalEnemy.scoreValue = 240;
-      TankShieldedEnemy.scoreValue = 480;
-      FastEnemy.scoreValue = 120;
-    }
+  drawPauseScreen() {
+    drawBackground(30, this.assets, this.backgroundY1, this.backgroundY2);
+    drawText("Paused", width / 2, height / 2, 54, CENTER, CENTER);
+    drawText(
+      "Press 'P' to Resume",
+      width / 2,
+      height / 2 + 60,
+      32,
+      CENTER,
+      CENTER
+    );
   }
 
-  handleLevelProgression() {
-    const scoreRequired = this.levelProgression();
-    if (this.score >= scoreRequired && !this.bossActive) {
-      this.level++;
-      if (this.level === 1) {
-        return;
+  handleWaveLogic() {
+    if (!this.bossActive && this.enemies.length === 0 && !this.shopShip) {
+      if (this.waveClearedTime === null) {
+        this.waveClearedTime = millis();
+      } else if (
+        millis() - this.waveClearedTime > 2000 &&
+        !this.waveInProgress
+      ) {
+        this.wave++;
+        this.waveInProgress = true;
+        this.waveBannerTimer = 1800;
+        if (this.wave % this.bossWaveInterval === 0) {
+          this.spawnBoss(this.getBossTypeForWave(this.wave));
+        } else {
+          spawnWave(this, this.wave);
+        }
+        this.waveClearedTime = null;
       }
-      if (this.level % 5 === 0) {
-        const bossTypes = [
-          "CosmicSerpent",
-          "CelestialGuardian",
-          "VoidWeaver",
-          "ancient",
-          "crimsonwing",
-          "azure",
-        ];
-        const bossType =
-          bossTypes[Math.floor(Math.random() * bossTypes.length)];
-        this.spawnBoss(bossType);
-      } else {
-        this.state = "upgrade";
-      }
+    } else if (
+      (this.enemies.length > 0 || this.bossActive) &&
+      this.waveInProgress
+    ) {
+      this.waveInProgress = false;
+      this.waveClearedTime = null;
     }
   }
 
-  levelProgression() {
-    if (this.level <= 20) {
-      this.enemySpawnInterval = Math.max(400, 1200 - this.level * 30);
-      return 60 * this.level;
-    } else if (this.level <= 50) {
-      this.enemySpawnInterval = Math.max(300, 800 - (this.level - 20) * 10);
-      return 1200 + 80 * (this.level - 20);
-    } else if (this.level <= 100) {
-      this.enemySpawnInterval = Math.max(200, 600 - (this.level - 50) * 5);
-      return 4000 + 120 * (this.level - 50);
-    } else {
-      this.enemySpawnInterval = 150;
-      return 10000 + 200 * (this.level - 100);
-    }
-  }
-
-  spawnEnemies() {
-    if (this.bossActive) return;
-    if (millis() - this.lastEnemySpawnTime > this.enemySpawnInterval) {
-      const x = random(20, width - 20);
-      const y = -20;
-      const enemyTypes = [
-        NormalEnemy,
-        TankShieldedEnemy,
-        FastEnemy,
-        Bomber,
-        LaserDrone,
+  getBossTypeForWave(wave) {
+    const bossWaveNumber = Math.floor(wave / this.bossWaveInterval);
+    let bossTypes;
+    if (bossWaveNumber <= 2) {
+      bossTypes = [
+        "ancient",
+        "crimsonwing",
+        "azure",
+        "CelestialGuardian",
+        "VoidWeaver",
       ];
-      const numToSpawn = this.level > 10 ? 2 : 1;
-      for (let i = 0; i < numToSpawn; i++) {
-        const enemyType = random(enemyTypes);
-        const enemy = new enemyType(x, y, this.assets);
-        enemy.health += Math.floor(this.level * 1.5);
-        enemy.damage += Math.floor(this.level / 10);
-        this.enemies.push(enemy);
-      }
-      this.lastEnemySpawnTime = millis();
-      this.enemySpawnInterval = Math.max(
-        120,
-        this.enemySpawnInterval - this.level * 2
-      );
+    } else {
+      bossTypes = [
+        "ancient",
+        "crimsonwing",
+        "azure",
+        "CelestialGuardian",
+        "VoidWeaver",
+        "CosmicSerpent",
+      ];
     }
+    return bossTypes[Math.floor((bossWaveNumber - 1) % bossTypes.length)];
   }
 
   spawnBoss(bossType) {
+    if (this.bossActive) return;
     this.bossActive = true;
     let x;
     if (bossType === "azure" || bossType === "VoidWeaver") {
@@ -255,7 +377,56 @@ export class Game {
       x = random([width / 2, 20, width - 20]);
     }
     const y = -40;
-    this.enemies.push(new Boss(x, y, bossType, this.level, this.assets));
+    this.enemies.push(
+      new Boss(x, y, bossType, this.bossesDefeated, this.assets)
+    );
+  }
+
+  spawnShopShip() {
+    if (this.playerProgress.level % 3 === 0) {
+      this.shopShip = new ShopShip(
+        this.playerProgress.level,
+        this.playerProgress,
+        (upgradeObj) => this.applyShopUpgrade(upgradeObj)
+      );
+    }
+  }
+
+  applyShopUpgrade(upg) {
+    if (upg.type === "stats") {
+      if (upg.upgrade === "Speed Up") {
+        this.playerSpeed += 30;
+        this.player.speed = this.playerSpeed;
+      } else if (upg.upgrade === "Extra Health") {
+        this.playerHealth += 1;
+        this.player.health = Math.min(
+          this.player.health + 1,
+          this.playerHealth
+        );
+        this.maxPlayerHealth = this.playerHealth;
+      } else if (upg.upgrade === "Regeneration") {
+        if (!this.player.regenInterval) {
+          this.player.regenInterval = setInterval(() => {
+            if (this.player.health < this.maxPlayerHealth) {
+              this.player.health++;
+            }
+          }, 4000);
+        }
+      } else if (upg.upgrade === "Temporary Shield") {
+        this.player.shielded = true;
+        setTimeout(() => {
+          this.player.shielded = false;
+        }, 10000);
+      }
+    } else if (upg.type === "weapons") {
+      if (upg.upgrade === "Bigger Bullets") {
+        Bullet.setSize((Bullet.defaultSize || 5) + 3);
+      } else if (upg.upgrade === "Piercing Bullets") {
+        this.player.piercing = true;
+      } else if (upg.upgrade === "Explosive Bullets") {
+        this.player.explosive = true;
+      }
+    }
   }
 
   handlePowerUps() {
@@ -323,6 +494,12 @@ export class Game {
         this.bossActive = false;
         this.handleLevelProgression();
         break;
+      case "Slow Time":
+        this.enemies.forEach((e) => (e.speed *= 0.5));
+        setTimeout(() => {
+          this.enemies.forEach((e) => (e.speed *= 2));
+        }, 5000);
+        break;
     }
   }
 
@@ -330,49 +507,30 @@ export class Game {
     if (millis() - this.lastPowerUpSpawnTime > this.powerUpSpawnInterval) {
       const x = random(20, width - 20);
       const y = -20;
-      const type = random([
-        "Triple Shot",
-        "Invincibility",
-        "Smart Bomb",
-        "Speed Boost",
-        "Recovery",
-      ]);
+      const type = getRandomPowerUp(this.level);
       this.powerUps.push(new PowerUp(x, y, type, this.assets));
       this.lastPowerUpSpawnTime = millis();
       this.powerUpSpawnInterval = min(20000, 10000 + this.level * 500);
     }
   }
 
-  displayHUD() {
-    textAlign(LEFT, CENTER);
-    drawText(`Score: ${this.score}`, 20, 20, 16, LEFT, CENTER);
-    drawText(`Level: ${this.level}`, 20, 40, 16, LEFT, CENTER);
-    drawText(`Damage: ${this.player.damage}`, 20, 60, 16, LEFT, CENTER);
-
-    let activePowerUps = [];
-    if (this.player.tripleShot) activePowerUps.push("Triple Shot");
-    if (this.player.invincible) activePowerUps.push("Invincibility");
-    if (this.player.speedBoost) activePowerUps.push("Speed Boost");
-    let powerUpText =
-      activePowerUps.length > 0 ? activePowerUps.join(", ") : "None";
-    drawText(`Power-Up: ${powerUpText}`, 20, 80, 16, LEFT, CENTER);
-
-    drawText(`Fire Rate: ${this.playerFireRate} ms`, 20, 100, 16, LEFT, CENTER);
-    drawText(`Speed: ${this.playerSpeed} px/s`, 20, 120, 16, LEFT, CENTER);
-
-    fill(255, 0, 0);
-    rect(40, 140, 100, 10);
-    fill(0, 255, 0);
-    rect(40, 140, (this.player.health / this.maxPlayerHealth) * 100, 10);
-    textAlign(CENTER, CENTER);
+  afterBossDefeat() {
+    const choices = getBossUpgradeChoices(this.playerProgress.level);
   }
 
   checkBulletCollision(bullet, bulletIndex) {
     for (let j = this.enemies.length - 1; j >= 0; j--) {
       const enemy = this.enemies[j];
+
+      const dx = bullet.x - enemy.x;
+      const dy = bullet.y - enemy.y;
+      const distanceSquared = dx * dx + dy * dy;
+      const minDistanceSquared = (enemy.size / 2) * (enemy.size / 2);
+
       if (enemy instanceof Boss && enemy.bossType === "CosmicSerpent") {
         const hit = enemy.isSegmentHit(bullet.x, bullet.y);
         if (hit) {
+          this.returnBulletToPool(this.bullets[bulletIndex]);
           this.bullets.splice(bulletIndex, 1);
           if (hit.part === "head") {
             enemy.health -= bullet.damage;
@@ -382,13 +540,7 @@ export class Game {
               this.score += Math.floor(enemy.scoreValue * 0.15);
               if (random() < 0.25) {
                 const seg = enemy.segments[hit.idx];
-                const type = random([
-                  "Triple Shot",
-                  "Invincibility",
-                  "Smart Bomb",
-                  "Speed Boost",
-                  "Recovery",
-                ]);
+                const type = getRandomPowerUp(this.level);
                 this.powerUps.push(
                   new PowerUp(seg.x, seg.y, type, this.assets)
                 );
@@ -399,13 +551,7 @@ export class Game {
             enemy.tail.health -= bullet.damage;
             if (enemy.tail.health <= 0) {
               this.score += Math.floor(enemy.scoreValue * 0.2);
-              const type = random([
-                "Triple Shot",
-                "Invincibility",
-                "Smart Bomb",
-                "Speed Boost",
-                "Recovery",
-              ]);
+              const type = getRandomPowerUp(this.level);
               this.powerUps.push(
                 new PowerUp(enemy.tail.x, enemy.tail.y, type, this.assets)
               );
@@ -415,30 +561,30 @@ export class Game {
           if (enemy.health <= 0) {
             this.score += enemy.scoreValue;
             if (random() < 0.5) {
-              const type = random([
-                "Triple Shot",
-                "Invincibility",
-                "Smart Bomb",
-                "Speed Boost",
-                "Recovery",
-              ]);
+              const type = getRandomPowerUp(this.level);
               this.powerUps.push(
                 new PowerUp(enemy.x, enemy.y, type, this.assets)
               );
             }
+            this.playerProgress.addCurrency(enemy.scoreValue);
+            this.playerProgress.addExp(enemy.scoreValue);
             this.enemies.splice(j, 1);
             this.bossActive = false;
+            this.bossesDefeated++;
           }
           break;
         }
       } else {
         if (dist(bullet.x, bullet.y, enemy.x, enemy.y) < enemy.size / 2) {
+          this.returnBulletToPool(this.bullets[bulletIndex]);
           this.bullets.splice(bulletIndex, 1);
+
           if (typeof enemy.takeDamage === "function") {
             enemy.takeDamage(bullet.damage);
           } else {
             enemy.health -= bullet.damage;
           }
+
           if (enemy.health <= 0) {
             this.score += enemy.scoreValue;
             if (
@@ -449,9 +595,12 @@ export class Game {
                 (b) => !(b.isExpanding && b.ownerBossId === enemy)
               );
             }
+            this.playerProgress.addCurrency(enemy.scoreValue);
+            this.playerProgress.addExp(enemy.scoreValue);
             this.enemies.splice(j, 1);
             if (enemy instanceof Boss) {
               this.bossActive = false;
+              this.bossesDefeated++;
             }
           }
           break;
@@ -477,6 +626,7 @@ export class Game {
     for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
       let bullet = this.enemyBullets[i];
       if (!bullet) continue;
+
       if (bullet instanceof BlackHole) {
         bullet.update(this.player);
         bullet.show();
@@ -485,19 +635,27 @@ export class Game {
         }
         continue;
       }
+
       bullet.update();
       bullet.show();
+
       if (bullet.y > height || bullet.x < 0 || bullet.x > width) {
+        this.returnBulletToPool(bullet);
         this.enemyBullets.splice(i, 1);
         continue;
       }
-      if (
-        dist(bullet.x, bullet.y, this.player.x, this.player.y) <
-          this.player.size / 2 &&
-        !this.player.invincible
-      ) {
+
+      const dx = bullet.x - this.player.x;
+      const dy = bullet.y - this.player.y;
+      const distanceSquared = dx * dx + dy * dy;
+      const minDistanceSquared =
+        (this.player.size / 2) * (this.player.size / 2);
+
+      if (distanceSquared < minDistanceSquared && !this.player.invincible) {
         this.player.health -= bullet.damage;
+        this.returnBulletToPool(bullet);
         this.enemyBullets.splice(i, 1);
+        break;
       }
     }
   }
@@ -516,7 +674,8 @@ export class Game {
       }
       enemy.show();
       if (enemy.y > height) {
-        this.enemies.splice(i, 1);
+        enemy.y = -enemy.size;
+        enemy.x = random(enemy.size / 2, width - enemy.size / 2);
         continue;
       }
       if (
@@ -531,60 +690,151 @@ export class Game {
   }
 
   handleShooting() {
-    if (keyIsDown(32) && millis() - this.lastShotTime > this.playerFireRate) {
+    if (
+      this.keys["Space"] &&
+      millis() - this.lastShotTime > this.playerFireRate
+    ) {
       if (this.player.tripleShot) {
-        this.bullets.push(
-          new Bullet(
-            this.player.x - 10,
-            this.player.y,
-            this.player.damage,
-            -400,
-            Bullet.defaultSize,
-            null,
-            this.assets
-          )
-        );
-        this.bullets.push(
-          new Bullet(
-            this.player.x,
-            this.player.y,
-            this.player.damage,
-            -400,
-            Bullet.defaultSize,
-            null,
-            this.assets
-          )
-        );
-        this.bullets.push(
-          new Bullet(
-            this.player.x + 10,
-            this.player.y,
-            this.player.damage,
-            -400,
-            Bullet.defaultSize,
-            null,
-            this.assets
-          )
-        );
+        const bullet1 = this.getBulletFromPool(false);
+        const bullet2 = this.getBulletFromPool(false);
+        const bullet3 = this.getBulletFromPool(false);
+
+        Object.assign(bullet1, {
+          x: this.player.x - 10,
+          y: this.player.y,
+          damage: this.player.damage,
+          xspeed: 0,
+          yspeed: -400,
+          size: Bullet.defaultSize,
+        });
+
+        Object.assign(bullet2, {
+          x: this.player.x,
+          y: this.player.y,
+          damage: this.player.damage,
+          xspeed: 0,
+          yspeed: -400,
+          size: Bullet.defaultSize,
+        });
+
+        Object.assign(bullet3, {
+          x: this.player.x + 10,
+          y: this.player.y,
+          damage: this.player.damage,
+          xspeed: 0,
+          yspeed: -400,
+          size: Bullet.defaultSize,
+        });
+
+        this.bullets.push(bullet1, bullet2, bullet3);
       } else {
-        this.bullets.push(
-          new Bullet(
-            this.player.x,
-            this.player.y,
-            this.player.damage,
-            -400,
-            Bullet.defaultSize,
-            null,
-            this.assets
-          )
-        );
+        const bullet = this.getBulletFromPool(false);
+        Object.assign(bullet, {
+          x: this.player.x,
+          y: this.player.y,
+          damage: this.player.damage,
+          xspeed: 0,
+          yspeed: -400,
+          size: Bullet.defaultSize,
+        });
+        this.bullets.push(bullet);
       }
       this.lastShotTime = millis();
     }
   }
 
+  displayHUD() {
+    textAlign(LEFT, CENTER);
+    let y = 30;
+    const line = 28;
+    drawText(`Score: ${this.score}`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    drawText(`Wave: ${this.wave}`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    drawText(`Damage: ${this.player.damage}`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    let activePowerUps = [];
+    if (this.player.tripleShot) activePowerUps.push("Triple Shot");
+    if (this.player.invincible) activePowerUps.push("Invincibility");
+    if (this.player.speedBoost) activePowerUps.push("Speed Boost");
+    let powerUpText =
+      activePowerUps.length > 0 ? activePowerUps.join(", ") : "None";
+    drawText(`Power-Up: ${powerUpText}`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    drawText(`Fire Rate: ${this.playerFireRate} ms`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    drawText(`Speed: ${this.playerSpeed} px/s`, 30, y, 22, LEFT, CENTER);
+    y += line;
+    drawText(
+      `Currency: $${this.playerProgress.currency}`,
+      30,
+      y,
+      22,
+      LEFT,
+      CENTER
+    );
+    y += line;
+    drawText(
+      `EXP: ${this.playerProgress.exp} / ${this.playerProgress.expToNext}`,
+      30,
+      y,
+      22,
+      LEFT,
+      CENTER
+    );
+    y += line;
+    drawText(
+      `Player Level: ${this.playerProgress.level}`,
+      30,
+      y,
+      22,
+      LEFT,
+      CENTER
+    );
+
+    y += 18;
+    fill(60);
+    rect(30, y, 180, 18, 6);
+    fill(0, 220, 0);
+    rect(30, y, (this.player.health / this.maxPlayerHealth) * 180, 18, 6);
+    stroke(255);
+    noFill();
+    rect(30, y, 180, 18, 6);
+    noStroke();
+    y += 28;
+  }
+
+  handleScoreGain() {
+    if (this.wave < 50) {
+      NormalEnemy.scoreValue = 30;
+      TankShieldedEnemy.scoreValue = 60;
+      FastEnemy.scoreValue = 15;
+    } else if (this.wave < 100) {
+      NormalEnemy.scoreValue = 60;
+      TankShieldedEnemy.scoreValue = 120;
+      FastEnemy.scoreValue = 30;
+    } else if (this.wave < 150) {
+      NormalEnemy.scoreValue = 120;
+      TankShieldedEnemy.scoreValue = 240;
+      FastEnemy.scoreValue = 60;
+    } else {
+      NormalEnemy.scoreValue = 240;
+      TankShieldedEnemy.scoreValue = 480;
+      FastEnemy.scoreValue = 120;
+    }
+  }
+
+  handleLevelProgression() {
+    if (this.playerProgress.leveledUp) {
+      this.playerProgress.leveledUp = false;
+      this.spawnShopShip();
+      this.state = "upgrade";
+    }
+  }
+
   checkGameOver() {
     if (this.player.health <= 0) {
+      this.highscoreSystem.setLocalBest(this.score);
       this.state = "gameOver";
     }
   }
@@ -594,40 +844,114 @@ export class Game {
     drawText(
       "Choose an Upgrade:",
       width / 2,
-      height / 2 - 50,
-      24,
+      height / 2 - 90,
+      38,
       CENTER,
       CENTER
     );
-    upgrades.forEach((upgrade, index) => {
-      let upgradeText = `${index + 1}: ${upgrade}`;
-      if (upgrade === "Speed Up" && this.playerSpeed >= 500) {
-        upgradeText += " (Maxed Out)";
-      }
-      if (upgrade === "Faster Fire Rate" && this.playerFireRate <= 100) {
-        upgradeText += " (Maxed Out)";
-      }
-      if (upgrade === "Smaller Size" && this.player.size <= 20) {
-        upgradeText += " (Maxed Out)";
-      }
-      if (upgrade === "Bigger Bullets" && Bullet.defaultSize >= 20) {
-        upgradeText += " (Maxed Out)";
-      }
+    const available = upgrades.map((upgrade, index) => {
+      if (upgrade === "Speed Up" && this.playerSpeed >= 500) return false;
+      if (upgrade === "Faster Fire Rate" && this.playerFireRate <= 100)
+        return false;
+      if (upgrade === "Smaller Size" && this.player.size <= 20) return false;
+      if (upgrade === "Bigger Bullets" && Bullet.defaultSize >= 20)
+        return false;
       if (upgrade === "Damage Up") {
         let damageCap = this.calculateDamageCap();
-        if (this.player.damage >= damageCap) {
-          upgradeText += " (Maxed Out)";
-        }
+        if (this.player.damage >= damageCap) return false;
+      }
+      return true;
+    });
+
+    let anyAvailable = available.some(Boolean);
+
+    upgrades.forEach((upgrade, index) => {
+      let upgradeText = `${index + 1}: ${upgrade}`;
+      if (!available[index]) {
+        upgradeText += " (Maxed Out)";
       }
       drawText(
         upgradeText,
         width / 2,
-        height / 2 + index * 30,
-        24,
+        height / 2 - 30 + index * 40,
+        32,
         CENTER,
         CENTER
       );
     });
+
+    if (!anyAvailable) {
+      drawText(
+        "All upgrades maxed! Press any key to continue.",
+        width / 2,
+        height / 2 + 240,
+        24,
+        CENTER,
+        CENTER
+      );
+    } else {
+      drawText(
+        "Press 1-6 to select an upgrade and continue",
+        width / 2,
+        height / 2 + 240,
+        24,
+        CENTER,
+        CENTER
+      );
+    }
+  }
+
+  keyPressed(event) {
+    if (event.repeat) return;
+    this.keys[event.code] = true;
+
+    const keyCode = event.keyCode;
+    if (this.state === "start" && keyCode === ENTER) {
+      this.state = "play";
+    }
+    if (this.state === "gameOver" && keyCode === 82) {
+      this.resetGame();
+    }
+    if (this.state === "upgrade") {
+      const idx = keyCode - 49;
+      const isNumberKey = idx >= 0 && idx < upgrades.length;
+      const available = upgrades.map((upgrade, index) => {
+        if (upgrade === "Speed Up" && this.playerSpeed >= 500) return false;
+        if (upgrade === "Faster Fire Rate" && this.playerFireRate <= 100)
+          return false;
+        if (upgrade === "Smaller Size" && this.player.size <= 20) return false;
+        if (upgrade === "Bigger Bullets" && Bullet.defaultSize >= 20)
+          return false;
+        if (upgrade === "Damage Up") {
+          let damageCap = this.calculateDamageCap();
+          if (this.player.damage >= damageCap) return false;
+        }
+        return true;
+      });
+      const anyAvailable = available.some(Boolean);
+
+      if (anyAvailable && isNumberKey && available[idx]) {
+        this.applyUpgrade(idx);
+        if (this.invincibilityTimeout) clearTimeout(this.invincibilityTimeout);
+        this.player.invincible = true;
+        this.invincibilityTimeout = setTimeout(() => {
+          this.player.invincible = false;
+          this.invincibilityTimeout = null;
+        }, 1000);
+        this.state = "play";
+      } else if (!anyAvailable) {
+        this.state = "play";
+      }
+    }
+    if (this.state === "play" && keyCode === 80) {
+      this.state = "pause";
+    } else if (this.state === "pause" && keyCode === 80) {
+      this.state = "play";
+    }
+  }
+
+  keyReleased(event) {
+    this.keys[event.code] = false;
   }
 
   resetGame() {
@@ -645,43 +969,28 @@ export class Game {
     this.lastEnemySpawnTime = 0;
     this.lastPowerUpSpawnTime = 0;
     this.player = new Player(this.assets, this.playerSpeed);
+    this.wave = 1;
+    this.waveInProgress = false;
+    this.waveBannerTimer = 0;
+    this.bossesDefeated = 0;
   }
 
-  keyPressed(keyCode) {
-    if (this.state === "start" && keyCode === ENTER) {
-      this.state = "play";
+  calculateDamageCap() {
+    const mindamagecap = 50;
+    const maxdamagecap = 10000;
+    let damageCap;
+    if (this.wave < 10) {
+      damageCap = mindamagecap;
+    } else if (this.wave < 50) {
+      damageCap = 2500;
+    } else if (this.wave < 100) {
+      damageCap = 5000;
+    } else if (this.wave < 150) {
+      damageCap = 7500;
+    } else {
+      damageCap = maxdamagecap;
     }
-    if (this.state === "gameOver" && keyCode === 82) {
-      this.resetGame();
-    }
-    if (this.state === "upgrade" && keyCode >= 49 && keyCode <= 54) {
-      this.applyUpgrade(keyCode - 49);
-      if (this.invincibilityTimeout) clearTimeout(this.invincibilityTimeout);
-      this.player.invincible = true;
-      this.invincibilityTimeout = setTimeout(() => {
-        this.player.invincible = false;
-        this.invincibilityTimeout = null;
-      }, 1000);
-      this.state = "play";
-    }
-    if (this.state === "play" && keyCode === 80) {
-      this.state = "pause";
-    } else if (this.state === "pause" && keyCode === 80) {
-      this.state = "play";
-    }
-  }
-
-  drawPauseScreen() {
-    drawBackground(30, this.assets, this.backgroundY1, this.backgroundY2);
-    drawText("Paused", width / 2, height / 2, 32, CENTER, CENTER);
-    drawText(
-      "Press 'P' to Resume",
-      width / 2,
-      height / 2 + 50,
-      20,
-      CENTER,
-      CENTER
-    );
+    return damageCap;
   }
 
   applyUpgrade(index) {
@@ -701,14 +1010,14 @@ export class Game {
       case "Extra Health":
         if (this.playerHealth <= this.maxPlayerHealth) this.playerHealth++;
         else this.score += 10;
-        if (this.level === 1) {
+        if (this.playerProgress.level === 1) {
           this.player.damage += 5;
         }
         break;
       case "Faster Fire Rate":
         if (this.playerFireRate > 100) {
           this.playerFireRate -= 50;
-          if (this.level === 1) {
+          if (this.playerProgress.level === 1) {
             this.player.damage += 5;
           }
           if (this.playerFireRate < 100) {
@@ -722,7 +1031,7 @@ export class Game {
       case "Smaller Size":
         if (this.player.size > 20) {
           this.player.size -= 10;
-          if (this.level === 1) {
+          if (this.playerProgress.level === 1) {
             this.player.damage += 5;
           }
           if (this.player.size < 20) {
@@ -736,7 +1045,7 @@ export class Game {
       case "Bigger Bullets":
         if (Bullet.defaultSize < 20) {
           Bullet.setSize((Bullet.defaultSize || 5) + 5);
-          if (this.level === 1) {
+          if (this.playerProgress.level === 1) {
             this.player.damage += 5;
           }
           if (Bullet.defaultSize > 20) {

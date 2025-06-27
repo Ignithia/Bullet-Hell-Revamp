@@ -24,13 +24,13 @@ export class Enemy {
 
 export class NormalEnemy extends Enemy {
   constructor(x, y, assets) {
-    super(x, y, 40, 100, 10, 1, assets.defaultEnemySprite, 5);
+    super(x, y, 40, 100, 10, 1, assets.defaultEnemySprite, 10);
   }
 }
 
 export class FastEnemy extends Enemy {
   constructor(x, y, assets) {
-    super(x, y, 30, 200, 5, 1, assets.fastEnemySprite, 2);
+    super(x, y, 30, 200, 5, 1, assets.fastEnemySprite, 5);
   }
 }
 
@@ -63,7 +63,7 @@ export class Bomber extends Enemy {
 
 export class LaserDrone extends Enemy {
   constructor(x, y, assets) {
-    super(x, y, 30, 120, 8, 1, assets.laserDroneEnemySprite, 25);
+    super(x, y, 30, 120, 8, 1, assets.laserDroneEnemySprite, 30);
     this.laserCooldown = 0;
     this.assets = assets;
   }
@@ -79,7 +79,7 @@ export class LaserDrone extends Enemy {
             this.x,
             this.y,
             this.damage,
-            300,
+            200,
             32,
             baseAngle + offset,
             this.assets,
@@ -94,7 +94,7 @@ export class LaserDrone extends Enemy {
 
 export class TankShieldedEnemy extends Enemy {
   constructor(x, y, assets) {
-    super(x, y, 60, 50, 20, 2, assets.tankEnemySprite, 30);
+    super(x, y, 60, 50, 20, 2, assets.tankEnemySprite, 40);
     this.shield = 15;
     this.maxShield = 15;
     this.shieldActive = true;

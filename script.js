@@ -75,21 +75,34 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(800, 600);
+  createCanvas(1400, 1000);
   frameRate(60);
   game = new Game(assets);
   game.setup();
+
+  // Native event listeners for true multi-key support
+  window.addEventListener("keydown", (e) => {
+    // Prevent default for space and arrows to avoid scrolling
+    if (
+      e.code === "Space" ||
+      e.code === "ArrowUp" ||
+      e.code === "ArrowDown" ||
+      e.code === "ArrowLeft" ||
+      e.code === "ArrowRight"
+    ) {
+      e.preventDefault();
+    }
+    game.keyPressed(e);
+  });
+  window.addEventListener("keyup", (e) => {
+    game.keyReleased(e);
+  });
 }
 
 function draw() {
   game.draw();
 }
 
-function keyPressed() {
-  game.keyPressed(keyCode);
-}
-
 window.preload = preload;
 window.setup = setup;
 window.draw = draw;
-window.keyPressed = keyPressed;

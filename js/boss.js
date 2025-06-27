@@ -2,64 +2,65 @@ import { Enemy, NormalEnemy, FastEnemy, TankShieldedEnemy } from "./enemy.js";
 import { Bullet } from "./bullet.js";
 
 export class Boss extends Enemy {
-  constructor(x, y, bossType, level, assets) {
+  constructor(x, y, bossType, bossesDefeated, assets) {
     let sprite, speed, health, damage, scoreValue, size;
+    const bossCount = bossesDefeated || 0;
     switch (bossType) {
       case "CosmicSerpent":
         sprite = assets.cosmicserpentheadSprite || assets.ancientBossSprite;
         size = 100;
         speed = 40;
-        health = 300 + level * 50;
-        damage = 5;
-        scoreValue = level * 200;
+        health = 300 + bossCount * 80;
+        damage = 5 + Math.floor(bossCount / 2);
+        scoreValue = 400 + bossCount * 200;
         break;
       case "CelestialGuardian":
         sprite = assets.celestialguardianSprite || assets.crimsonwingSprite;
         size = 120;
         speed = 20;
-        health = 250 + level * 40;
-        damage = 6;
-        scoreValue = level * 180;
+        health = 250 + bossCount * 70;
+        damage = 6 + Math.floor(bossCount / 2);
+        scoreValue = 350 + bossCount * 150;
         break;
       case "VoidWeaver":
         sprite = assets.voidweaverSprite || assets.azureSprite;
         size = 90;
         speed = 50;
-        health = 200 + level * 45;
-        damage = 4;
-        scoreValue = level * 220;
+        health = 200 + bossCount * 75;
+        damage = 4 + Math.floor(bossCount / 2);
+        scoreValue = 300 + bossCount * 150;
         break;
       case "ancient":
         sprite = assets.ancientBossSprite;
         size = 80;
         speed = 25;
-        health = 200 + level * 30;
-        damage = 2;
-        scoreValue = level * 120;
+        health = 200 + bossCount * 60;
+        damage = 2 + Math.floor(bossCount / 3);
+        scoreValue = 240 + bossCount * 120;
         break;
       case "crimsonwing":
         sprite = assets.crimsonwingSprite;
         size = 80;
         speed = 30;
-        health = 150 + level * 25;
-        damage = 3;
-        scoreValue = level * 110;
+        health = 150 + bossCount * 50;
+        damage = 3 + Math.floor(bossCount / 3);
+        scoreValue = 220 + bossCount * 110;
         break;
       case "azure":
         sprite = assets.azureSprite;
         size = 80;
         speed = 50;
-        health = 100 + level * 20;
-        damage = 1;
-        scoreValue = level * 100;
+        health = 100 + bossCount * 40;
+        damage = 1 + Math.floor(bossCount / 4);
+        scoreValue = 200 + bossCount * 100;
         break;
       default:
         sprite = assets.ancientBossSprite;
         size = 80;
         speed = 30;
-        health = 100 + level * 20;
-        damage = 3;
-        scoreValue = level * 100;
+        health = 100 + bossCount * 40;
+        damage = 3 + Math.floor(bossCount / 4);
+        scoreValue = 200 + bossCount * 100;
         break;
     }
     super(x, y, size, speed, health, damage, sprite, scoreValue);
