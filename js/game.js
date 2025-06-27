@@ -399,7 +399,7 @@ export class Game {
   }
 
   spawnShopShip() {
-    if (this.playerProgress.level % 3 === 0) {
+    if (this.wave % this.bossWaveInterval === 0 && !this.shopShip) {
       this.shopShip = new ShopShip(
         this.playerProgress.level,
         this.playerProgress,
@@ -631,6 +631,7 @@ export class Game {
     this.bossUpgradeChoices = getBossUpgradeChoices(this.playerProgress.level);
     this.awaitingBossUpgrade = true;
     this.state = "bossUpgrade";
+    this.pendingShopShip = true;
   }
 
   handleBullets() {
@@ -851,7 +852,6 @@ export class Game {
   handleLevelProgression() {
     if (this.playerProgress.leveledUp) {
       this.playerProgress.leveledUp = false;
-      this.spawnShopShip();
       this.state = "upgrade";
     }
   }
@@ -984,6 +984,10 @@ export class Game {
           this.bossUpgrades.push(this.bossUpgradeChoices[idx]);
           this.bossUpgradeChoices = [];
           this.awaitingBossUpgrade = false;
+          if (this.pendingShopShip) {
+            this.spawnShopShip();
+            this.pendingShopShip = false;
+          }
           this.state = "play";
         }
       }
