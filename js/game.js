@@ -65,7 +65,7 @@ export class Game {
     this.deltaTime = 16.67;
     this.backgroundY1 = 600;
     this.backgroundY2 = -600;
-    this.version = "2.3.0";
+    this.version = "2.3.1";
     this.tripleShotTimeout = null;
     this.invincibilityTimeout = null;
     this.shieldTimeout = null;
@@ -587,6 +587,7 @@ export class Game {
             this.enemies.splice(j, 1);
             this.bossActive = false;
             this.bossesDefeated++;
+            this.state = "bossUpgrade";
             this.triggerBossUpgrade();
           }
           break;
@@ -618,6 +619,7 @@ export class Game {
             if (enemy instanceof Boss) {
               this.bossActive = false;
               this.bossesDefeated++;
+              this.state = "bossUpgrade";
               this.triggerBossUpgrade();
             }
           }
@@ -980,7 +982,7 @@ export class Game {
       if (["1", "2", "3"].includes(event.key)) {
         const idx = Number(event.key) - 1;
         if (this.bossUpgradeChoices[idx]) {
-          applyBossUpgrade(this.bossUpgradeChoices[idx]);
+          applyBossUpgrade(this, this.bossUpgradeChoices[idx]);
           this.bossUpgrades.push(this.bossUpgradeChoices[idx]);
           this.bossUpgradeChoices = [];
           this.awaitingBossUpgrade = false;
@@ -988,7 +990,12 @@ export class Game {
             this.spawnShopShip();
             this.pendingShopShip = false;
           }
-          this.state = "play";
+          if (this.playerProgress.leveledUp) {
+            this.playerProgress.leveledUp = false;
+            this.state = "upgrade";
+          } else {
+            this.state = "play";
+          }
         }
       }
       return;
