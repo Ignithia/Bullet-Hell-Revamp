@@ -106,3 +106,79 @@ export function getBossUpgradeChoices(level) {
   }
   return choices;
 }
+
+export function applyBossUpgrade(game, upg) {
+  switch (upg.name) {
+    case "Overcharged Blaster":
+      game.playerFireRate = Math.floor(game.playerFireRate * 0.5);
+      game.player.damage = Math.floor(game.player.damage * 0.8);
+      break;
+    case "Glass Cannon":
+      game.player.damage = Math.floor(game.player.damage * 2);
+      game.player.takeDoubleDamage = true;
+      break;
+    case "Iron Plating":
+      game.maxPlayerHealth += 5;
+      game.playerHealth += 5;
+      game.player.speed = Math.floor(game.player.speed * 0.8);
+      game.playerSpeed = game.player.speed;
+      break;
+    case "Vampiric Core":
+      game.player.vampiricKills = 0;
+      game.player.vampiricCore = true;
+      break;
+    case "Temporal Distortion":
+      game.temporalDistortion = true;
+      game.temporalDistortionApplied = false;
+      break;
+    case "Adaptive Shields":
+      game.player.adaptiveShield = true;
+      break;
+    case "Berserker Mode":
+      game.player.berserkerMode = true;
+      break;
+    case "Nano Repair Bots":
+      if (!game.player.nanoRepairInterval) {
+        game.player.nanoRepairInterval = setInterval(() => {
+          if (game.player.health < game.maxPlayerHealth) {
+            game.player.health++;
+          }
+        }, 10000);
+      }
+      game.player.speed = Math.floor(game.player.speed * 0.9);
+      game.playerSpeed = game.player.speed;
+      break;
+    case "Explosive Payload":
+      game.player.explosivePayload = true;
+      game.playerFireRate = Math.floor(game.playerFireRate * 1.2);
+      break;
+    case "Quantum Splitter":
+      game.player.quantumSplitter = true;
+      game.playerFireRate = Math.floor(game.playerFireRate * 1.15);
+      break;
+    case "Reactive Armor":
+      game.player.reactiveArmor = true;
+      game.player.speed = Math.floor(game.player.speed * 0.9);
+      game.playerSpeed = game.player.speed;
+      break;
+    case "Overdrive Engine":
+      game.player.speed = Math.floor(game.player.speed * 1.3);
+      game.playerSpeed = game.player.speed;
+      game.maxPlayerHealth -= 3;
+      if (game.player.health > game.maxPlayerHealth) {
+        game.player.health = game.maxPlayerHealth;
+      }
+      break;
+    case "Precision Targeting":
+      game.player.criticalChance = 0.5;
+      game.playerFireRate = Math.floor(game.playerFireRate * 1.15);
+      break;
+    case "Energy Overflow":
+      game.playerFireRate = Math.floor(game.playerFireRate * 0.8);
+      game.player.damage = Math.floor(game.player.damage * 1.2);
+      game.player.energyOverflow = true;
+      break;
+    default:
+      break;
+  }
+}

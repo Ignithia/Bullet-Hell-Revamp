@@ -22,6 +22,7 @@ export class ShopShip {
     this.playerProgress = playerProgress;
     this.inventory = this.generateInventory();
     this.onPurchase = onPurchase;
+    this.closed = false;
   }
 
   generateInventory() {
@@ -46,6 +47,7 @@ export class ShopShip {
   }
 
   showShopUI() {
+    if (this.closed) return;
     fill(30, 30, 30, 220);
     rect(width / 2 - 220, height / 2 - 160, 440, 320, 16);
     fill(255);
@@ -71,6 +73,7 @@ export class ShopShip {
   }
 
   purchase(index) {
+    if (this.closed) return false;
     const item = this.inventory[index];
     if (!item) return false;
     if (this.playerProgress.currency >= item.price) {
@@ -79,7 +82,27 @@ export class ShopShip {
       if (typeof this.onPurchase === "function") {
         this.onPurchase(item);
       }
+      this.close();
       return true;
+    }
+    return false;
+  }
+
+  close() {
+    this.closed = true;
+  }
+
+  handleInput(event) {
+    if (this.closed) return false;
+    if (event.key === "Escape") {
+      this.close();
+      return true;
+    }
+    if (event.key === "1" || event.key === "2" || event.key === "3") {
+      const idx = Number(event.key) - 1;
+      if (this.purchase(idx)) {
+        return true;
+      }
     }
     return false;
   }

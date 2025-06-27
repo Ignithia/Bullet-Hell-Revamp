@@ -21,7 +21,11 @@ import {
   PowerUpRarities,
   getRandomPowerUp,
 } from "./PowerUpTypes.js";
-import { BossUpgrades, getBossUpgradeChoices } from "./BossUpgrades.js";
+import {
+  BossUpgrades,
+  getBossUpgradeChoices,
+  applyBossUpgrade,
+} from "./BossUpgrades.js";
 import { spawnWave } from "./enemyWaveSpawner.js";
 
 const upgrades = [
@@ -61,7 +65,7 @@ export class Game {
     this.deltaTime = 16.67;
     this.backgroundY1 = 600;
     this.backgroundY2 = -600;
-    this.version = "2.2.0";
+    this.version = "2.3.0";
     this.tripleShotTimeout = null;
     this.invincibilityTimeout = null;
     this.shieldTimeout = null;
@@ -89,6 +93,9 @@ export class Game {
     this.initializeBulletPools();
     this.waveClearedTime = null;
     this.bossesDefeated = 0;
+    this.bossUpgrades = [];
+    this.bossUpgradeChoices = [];
+    this.awaitingBossUpgrade = false;
   }
 
   initializeBulletPools() {
@@ -153,6 +160,9 @@ export class Game {
       case "pause":
         this.drawPauseScreen();
         break;
+      case "bossUpgrade":
+        this.drawBossUpgradeScreen();
+        break;
     }
     if (
       this.state === "play" ||
@@ -161,8 +171,14 @@ export class Game {
     ) {
       this.displayHUD();
     }
+    if (this.shopShip && !this.shopShip.closed) {
+      this.shopShip.showShopUI();
+    }
     if (this.waveBannerTimer > 0) {
       this.drawWaveBanner();
+    }
+    if (this.bossUpgrades && this.bossUpgrades.length > 0) {
+      this.drawBossUpgradesHUD();
     }
   }
 
@@ -571,6 +587,7 @@ export class Game {
             this.enemies.splice(j, 1);
             this.bossActive = false;
             this.bossesDefeated++;
+            this.triggerBossUpgrade();
           }
           break;
         }
@@ -601,12 +618,19 @@ export class Game {
             if (enemy instanceof Boss) {
               this.bossActive = false;
               this.bossesDefeated++;
+              this.triggerBossUpgrade();
             }
           }
           break;
         }
       }
     }
+  }
+
+  triggerBossUpgrade() {
+    this.bossUpgradeChoices = getBossUpgradeChoices(this.playerProgress.level);
+    this.awaitingBossUpgrade = true;
+    this.state = "bossUpgrade";
   }
 
   handleBullets() {
@@ -835,6 +859,7 @@ export class Game {
   checkGameOver() {
     if (this.player.health <= 0) {
       this.highscoreSystem.setLocalBest(this.score);
+      this.highscoreSystem.localBest = this.highscoreSystem.getLocalBest();
       this.state = "gameOver";
     }
   }
@@ -901,9 +926,69 @@ export class Game {
     }
   }
 
+  drawBossUpgradeScreen() {
+    drawBackground(60, this.assets, this.backgroundY1, this.backgroundY2);
+    drawText(
+      "Boss Defeated! Choose a Boss Upgrade:",
+      width / 2,
+      height / 2 - 120,
+      38,
+      CENTER,
+      CENTER
+    );
+    this.bossUpgradeChoices.forEach((upg, i) => {
+      let y = height / 2 - 30 + i * 70;
+      let txt = `${i + 1}: ${upg.name} [${upg.rarity.toUpperCase()}]\n${
+        upg.effect
+      } | Drawback: ${upg.drawback}`;
+      drawText(txt, width / 2, y, 26, CENTER, CENTER);
+    });
+    drawText(
+      "Press 1, 2, or 3 to select",
+      width / 2,
+      height / 2 + 180,
+      24,
+      CENTER,
+      CENTER
+    );
+  }
+
+  drawBossUpgradesHUD() {
+    let y = height - 60;
+    textAlign(LEFT, CENTER);
+    textSize(18);
+    fill(255, 220, 80, 180);
+    let upgradesText = this.bossUpgrades.map((u) => u.name).join(", ");
+    text("Boss Upgrades: " + upgradesText, 30, y);
+  }
+
   keyPressed(event) {
     if (event.repeat) return;
     this.keys[event.code] = true;
+
+    if (this.shopShip && !this.shopShip.closed) {
+      if (this.shopShip.handleInput(event)) {
+        if (this.shopShip.closed) {
+          this.shopShip = null;
+          this.state = "play";
+        }
+        return;
+      }
+    }
+
+    if (this.state === "bossUpgrade") {
+      if (["1", "2", "3"].includes(event.key)) {
+        const idx = Number(event.key) - 1;
+        if (this.bossUpgradeChoices[idx]) {
+          applyBossUpgrade(this.bossUpgradeChoices[idx]);
+          this.bossUpgrades.push(this.bossUpgradeChoices[idx]);
+          this.bossUpgradeChoices = [];
+          this.awaitingBossUpgrade = false;
+          this.state = "play";
+        }
+      }
+      return;
+    }
 
     const keyCode = event.keyCode;
     if (this.state === "start" && keyCode === ENTER) {
@@ -973,6 +1058,9 @@ export class Game {
     this.waveInProgress = false;
     this.waveBannerTimer = 0;
     this.bossesDefeated = 0;
+    this.bossUpgrades = [];
+    this.bossUpgradeChoices = [];
+    this.awaitingBossUpgrade = false;
   }
 
   calculateDamageCap() {
