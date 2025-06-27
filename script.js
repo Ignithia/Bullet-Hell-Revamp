@@ -75,7 +75,7 @@ function preload() {
 }
 
 function setup() {
-  createCanvas(1400, 1000);
+  createCanvas(1000, 800);
   frameRate(60);
   game = new Game(assets);
   game.setup();
