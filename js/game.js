@@ -65,7 +65,7 @@ export class Game {
     this.deltaTime = 16.67;
     this.backgroundY1 = 600;
     this.backgroundY2 = -600;
-    this.version = "2.3.1";
+    this.version = "2.4.1";
     this.tripleShotTimeout = null;
     this.invincibilityTimeout = null;
     this.shieldTimeout = null;
@@ -163,6 +163,12 @@ export class Game {
       case "bossUpgrade":
         this.drawBossUpgradeScreen();
         break;
+      case "shop":
+        drawBackground(30, this.assets, this.backgroundY1, this.backgroundY2);
+        if (this.shopShip && !this.shopShip.closed) {
+          this.shopShip.showShopUI();
+        }
+        break;
     }
     if (
       this.state === "play" ||
@@ -171,14 +177,8 @@ export class Game {
     ) {
       this.displayHUD();
     }
-    if (this.shopShip && !this.shopShip.closed) {
+    if (this.shopShip && !this.shopShip.closed && this.state !== "shop") {
       this.shopShip.showShopUI();
-    }
-    if (this.waveBannerTimer > 0) {
-      this.drawWaveBanner();
-    }
-    if (this.bossUpgrades && this.bossUpgrades.length > 0) {
-      this.drawBossUpgradesHUD();
     }
   }
 
@@ -317,6 +317,100 @@ export class Game {
     this.handleShooting();
     this.checkGameOver();
     this.handleWaveLogic();
+    this.applyActiveBossUpgrades();
+  }
+
+  applyActiveBossUpgrades() {
+    if (this.state === "pause") return;
+
+    // Vampiric Core: Heal 1 HP every 5 kills
+    if (this.player.vampiricCore) {
+      if (typeof this.player.vampiricKills === "undefined") {
+        this.player.vampiricKills = 0;
+      }
+      if (this.player.vampiricKills >= 5) {
+        if (this.player.health < this.maxPlayerHealth) {
+          this.player.health += 1;
+        }
+        this.player.vampiricKills = 0;
+      }
+    }
+
+    // Berserker Mode: +30% damage when below 50% HP, lose 1 HP every 30s
+    if (this.player.berserkerMode) {
+      if (this.player.health < this.maxPlayerHealth / 2) {
+        if (!this.player.berserkerBonusApplied) {
+          this.player.damage = Math.floor(this.player.damage * 1.3);
+          this.player.berserkerBonusApplied = true;
+        }
+      } else if (this.player.berserkerBonusApplied) {
+        this.player.damage = Math.floor(this.player.damage / 1.3);
+        this.player.berserkerBonusApplied = false;
+      }
+      if (!this.player.berserkerInterval) {
+        this.player.berserkerInterval = setInterval(() => {
+          if (this.state !== "pause" && this.player.health > 1) {
+            this.player.health -= 1;
+          }
+        }, 30000);
+      }
+    }
+
+    // Temporal Distortion: Slow all enemies by 20%
+    if (this.temporalDistortion && !this.temporalDistortionApplied) {
+      this.enemies.forEach((e) => {
+        if (!e.temporalDistorted) {
+          e.speed *= 0.8;
+          e.temporalDistorted = true;
+        }
+      });
+      this.temporalDistortionApplied = true;
+    }
+
+    // Adaptive Shields: Gain a shield every 30 seconds
+    if (this.player.adaptiveShield && !this.player.adaptiveShieldInterval) {
+      this.player.shielded = true;
+      this.player.adaptiveShieldInterval = setInterval(() => {
+        this.player.shielded = true;
+      }, 30000);
+    }
+
+    // Reactive Armor: Negate first hit every 30 seconds
+    if (this.player.reactiveArmor && !this.player.reactiveArmorInterval) {
+      this.player.reactiveArmorActive = true;
+      this.player.reactiveArmorInterval = setInterval(() => {
+        this.player.reactiveArmorActive = true;
+      }, 30000);
+    }
+
+    // Energy Overflow: Lose 1 HP every 60 seconds
+    if (this.player.energyOverflow && !this.player.energyOverflowInterval) {
+      this.player.energyOverflowInterval = setInterval(() => {
+        if (this.state !== "pause" && this.player.health > 1) {
+          this.player.health -= 1;
+        }
+      }, 60000);
+    }
+
+    // Nano Repair Bots: Regenerate 1 HP every 10 seconds
+    if (this.player.nanoRepairInterval && this.state === "pause") {
+      // Pause nano repair by clearing interval when paused
+      clearInterval(this.player.nanoRepairInterval);
+      this.player.nanoRepairInterval = null;
+    } else if (
+      this.player.nanoRepairBots &&
+      !this.player.nanoRepairInterval &&
+      this.state !== "pause"
+    ) {
+      this.player.nanoRepairInterval = setInterval(() => {
+        if (
+          this.state !== "pause" &&
+          this.player.health < this.maxPlayerHealth
+        ) {
+          this.player.health++;
+        }
+      }, 10000);
+    }
   }
 
   drawPauseScreen() {
@@ -333,6 +427,7 @@ export class Game {
   }
 
   handleWaveLogic() {
+    if (this.state !== "play") return;
     if (!this.bossActive && this.enemies.length === 0 && !this.shopShip) {
       if (this.waveClearedTime === null) {
         this.waveClearedTime = millis();
@@ -380,7 +475,7 @@ export class Game {
         "CosmicSerpent",
       ];
     }
-    return bossTypes[Math.floor((bossWaveNumber - 1) % bossTypes.length)];
+    return bossTypes[Math.floor(Math.random() * bossTypes.length)];
   }
 
   spawnBoss(bossType) {
@@ -400,10 +495,18 @@ export class Game {
 
   spawnShopShip() {
     if (this.wave % this.bossWaveInterval === 0 && !this.shopShip) {
+      console.log("[DEBUG] Spawning ShopShip after boss wave:", this.wave);
       this.shopShip = new ShopShip(
         this.playerProgress.level,
         this.playerProgress,
         (upgradeObj) => this.applyShopUpgrade(upgradeObj)
+      );
+    } else {
+      console.log(
+        "[DEBUG] ShopShip not spawned. wave:",
+        this.wave,
+        "shopShip exists:",
+        !!this.shopShip
       );
     }
   }
@@ -587,6 +690,9 @@ export class Game {
             this.enemies.splice(j, 1);
             this.bossActive = false;
             this.bossesDefeated++;
+            console.log(
+              "[DEBUG] Boss defeated (CosmicSerpent). Triggering bossUpgrade state."
+            );
             this.state = "bossUpgrade";
             this.triggerBossUpgrade();
           }
@@ -605,6 +711,9 @@ export class Game {
 
           if (enemy.health <= 0) {
             this.score += enemy.scoreValue;
+            if (this.player.vampiricCore) {
+              this.player.vampiricKills = (this.player.vampiricKills || 0) + 1;
+            }
             if (
               enemy instanceof Boss &&
               enemy.bossType === "CelestialGuardian"
@@ -619,6 +728,9 @@ export class Game {
             if (enemy instanceof Boss) {
               this.bossActive = false;
               this.bossesDefeated++;
+              console.log(
+                "[DEBUG] Boss defeated. Triggering bossUpgrade state."
+              );
               this.state = "bossUpgrade";
               this.triggerBossUpgrade();
             }
@@ -630,6 +742,9 @@ export class Game {
   }
 
   triggerBossUpgrade() {
+    console.log(
+      "[DEBUG] triggerBossUpgrade called. Getting boss upgrade choices."
+    );
     this.bossUpgradeChoices = getBossUpgradeChoices(this.playerProgress.level);
     this.awaitingBossUpgrade = true;
     this.state = "bossUpgrade";
@@ -678,8 +793,19 @@ export class Game {
       const minDistanceSquared =
         (this.player.size / 2) * (this.player.size / 2);
 
-      if (distanceSquared < minDistanceSquared && !this.player.invincible) {
-        this.player.health -= bullet.damage;
+      let takeDamage = true;
+      if (this.player.invincible || this.player.shielded) {
+        takeDamage = false;
+        this.player.shielded = false;
+      }
+      if (this.player.reactiveArmor && this.player.reactiveArmorActive) {
+        takeDamage = false;
+        this.player.reactiveArmorActive = false;
+      }
+      if (distanceSquared < minDistanceSquared && takeDamage) {
+        let damage = bullet.damage;
+        if (this.player.takeDoubleDamage) damage *= 2;
+        this.player.health -= damage;
         this.returnBulletToPool(bullet);
         this.enemyBullets.splice(i, 1);
         break;
@@ -852,7 +978,11 @@ export class Game {
   }
 
   handleLevelProgression() {
-    if (this.playerProgress.leveledUp) {
+    if (
+      this.playerProgress.leveledUp &&
+      this.state !== "bossUpgrade" &&
+      this.state !== "shop"
+    ) {
       this.playerProgress.leveledUp = false;
       this.state = "upgrade";
     }
@@ -911,7 +1041,7 @@ export class Game {
       drawText(
         "All upgrades maxed! Press any key to continue.",
         width / 2,
-        height / 2 + 120,
+        height / 2 + 160,
         14,
         CENTER,
         CENTER
@@ -920,7 +1050,7 @@ export class Game {
       drawText(
         "Press 1-6 to select an upgrade and continue",
         width / 2,
-        height / 2 + 120,
+        height / 2 + 160,
         14,
         CENTER,
         CENTER
@@ -955,20 +1085,22 @@ export class Game {
     );
   }
 
-  drawBossUpgradesHUD() {
-    let y = height - 28;
-    textAlign(LEFT, CENTER);
-    textSize(12);
-    fill(255, 220, 80, 180);
-    let upgradesText = this.bossUpgrades.map((u) => u.name).join(", ");
-    text("Boss Upgrades: " + upgradesText, 18, y);
-  }
-
   keyPressed(event) {
     if (event.repeat) return;
     this.keys[event.code] = true;
 
-    if (this.shopShip && !this.shopShip.closed) {
+    if (this.state === "shop" && this.shopShip && !this.shopShip.closed) {
+      if (this.shopShip.handleInput(event)) {
+        if (this.shopShip.closed) {
+          this.shopShip = null;
+          this.state = "play";
+        }
+        return;
+      }
+      return;
+    }
+
+    if (this.shopShip && !this.shopShip.closed && this.state !== "shop") {
       if (this.shopShip.handleInput(event)) {
         if (this.shopShip.closed) {
           this.shopShip = null;
@@ -982,6 +1114,27 @@ export class Game {
       if (["1", "2", "3"].includes(event.key)) {
         const idx = Number(event.key) - 1;
         if (this.bossUpgradeChoices[idx]) {
+          if (!this.player)
+            this.player = new Player(this.assets, this.playerSpeed);
+          if (!this.player.hasOwnProperty("damage")) this.player.damage = 5;
+          if (!this.player.hasOwnProperty("speed"))
+            this.player.speed = this.playerSpeed;
+          if (!this.player.hasOwnProperty("health"))
+            this.player.health = this.playerHealth;
+          if (!this.player.hasOwnProperty("maxHealth"))
+            this.player.maxHealth = this.maxPlayerHealth;
+
+          this.player.vampiricCore = this.player.vampiricCore || false;
+          this.player.berserkerMode = this.player.berserkerMode || false;
+          this.player.adaptiveShield = this.player.adaptiveShield || false;
+          this.player.reactiveArmor = this.player.reactiveArmor || false;
+          this.player.energyOverflow = this.player.energyOverflow || false;
+          this.player.quantumSplitter = this.player.quantumSplitter || false;
+          this.player.explosivePayload = this.player.explosivePayload || false;
+          this.player.criticalChance = this.player.criticalChance || 0;
+          this.player.takeDoubleDamage = this.player.takeDoubleDamage || false;
+
+          // Actually apply the boss upgrade
           applyBossUpgrade(this, this.bossUpgradeChoices[idx]);
           this.bossUpgrades.push(this.bossUpgradeChoices[idx]);
           this.bossUpgradeChoices = [];
@@ -989,6 +1142,10 @@ export class Game {
           if (this.pendingShopShip) {
             this.spawnShopShip();
             this.pendingShopShip = false;
+            if (this.shopShip) {
+              this.state = "shop";
+              return;
+            }
           }
           if (this.playerProgress.leveledUp) {
             this.playerProgress.leveledUp = false;

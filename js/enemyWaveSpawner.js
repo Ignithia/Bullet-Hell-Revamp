@@ -58,17 +58,17 @@ const MIXED_GROUPS = [
   },
 ];
 
-const WAVE_CONFIGS = [
+const WAVE_CONFIGS_PREBOSS = [
   [ENEMY_GROUPS.basic],
   [ENEMY_GROUPS.basic, ENEMY_GROUPS.fast],
-  [ENEMY_GROUPS.laser],
   [ENEMY_GROUPS.basic, ENEMY_GROUPS.laser],
-  [ENEMY_GROUPS.tank],
-  [MIXED_GROUPS[0]],
-  [MIXED_GROUPS[1]],
-  [MIXED_GROUPS[2]],
-  [MIXED_GROUPS[3], MIXED_GROUPS[4]],
-  [MIXED_GROUPS[5], MIXED_GROUPS[6], MIXED_GROUPS[7]],
+  [ENEMY_GROUPS.tank, ENEMY_GROUPS.laser],
+];
+const WAVE_CONFIGS_POSTBOSS = [
+  [MIXED_GROUPS[0], MIXED_GROUPS[1]],
+  [MIXED_GROUPS[2], MIXED_GROUPS[3]],
+  [MIXED_GROUPS[8], MIXED_GROUPS[8], MIXED_GROUPS[8]],
+  [MIXED_GROUPS[1], MIXED_GROUPS[4], MIXED_GROUPS[7], MIXED_GROUPS[9]],
 ];
 
 function randInt(min, max) {
@@ -123,8 +123,12 @@ function spawnEnemyGroup(game, group, wave) {
 
 export function spawnWave(game, currentWaveNumber) {
   let groupsToSpawn;
-  if (currentWaveNumber <= 10) {
-    groupsToSpawn = WAVE_CONFIGS[currentWaveNumber - 1];
+  if (currentWaveNumber <= 5) {
+    groupsToSpawn = WAVE_CONFIGS_PREBOSS[currentWaveNumber - 1];
+  } else if (currentWaveNumber > 5 && currentWaveNumber <= 10) {
+    let index = 0;
+    groupsToSpawn = WAVE_CONFIGS_POSTBOSS[index];
+    index++;
   } else {
     groupsToSpawn = getProceduralGroups(currentWaveNumber);
   }

@@ -10,7 +10,7 @@ export class Boss extends Enemy {
         sprite = assets.cosmicserpentheadSprite || assets.ancientBossSprite;
         size = 100;
         speed = 40;
-        health = 300 + bossCount * 80;
+        health = 400 + bossCount * 80;
         damage = 5 + Math.floor(bossCount / 2);
         scoreValue = 400 + bossCount * 200;
         break;
@@ -18,7 +18,7 @@ export class Boss extends Enemy {
         sprite = assets.celestialguardianSprite || assets.crimsonwingSprite;
         size = 120;
         speed = 20;
-        health = 250 + bossCount * 70;
+        health = 550 + bossCount * 70;
         damage = 6 + Math.floor(bossCount / 2);
         scoreValue = 350 + bossCount * 150;
         break;
@@ -26,7 +26,7 @@ export class Boss extends Enemy {
         sprite = assets.voidweaverSprite || assets.azureSprite;
         size = 90;
         speed = 50;
-        health = 200 + bossCount * 75;
+        health = 400 + bossCount * 75;
         damage = 4 + Math.floor(bossCount / 2);
         scoreValue = 300 + bossCount * 150;
         break;
@@ -34,7 +34,7 @@ export class Boss extends Enemy {
         sprite = assets.ancientBossSprite;
         size = 80;
         speed = 25;
-        health = 200 + bossCount * 60;
+        health = 500 + bossCount * 60;
         damage = 2 + Math.floor(bossCount / 3);
         scoreValue = 240 + bossCount * 120;
         break;
@@ -42,7 +42,7 @@ export class Boss extends Enemy {
         sprite = assets.crimsonwingSprite;
         size = 80;
         speed = 30;
-        health = 150 + bossCount * 50;
+        health = 350 + bossCount * 50;
         damage = 3 + Math.floor(bossCount / 3);
         scoreValue = 220 + bossCount * 110;
         break;
@@ -50,7 +50,7 @@ export class Boss extends Enemy {
         sprite = assets.azureSprite;
         size = 80;
         speed = 50;
-        health = 100 + bossCount * 40;
+        health = 200 + bossCount * 40;
         damage = 1 + Math.floor(bossCount / 4);
         scoreValue = 200 + bossCount * 100;
         break;
@@ -450,6 +450,7 @@ export class Boss extends Enemy {
 
   ancientPhase1(enemyBullets, player) {
     if (this.attackTimer > 1200) {
+      const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
       enemyBullets.push(
         new Bullet(
           this.x,
@@ -457,7 +458,7 @@ export class Boss extends Enemy {
           this.damage,
           180,
           30,
-          null,
+          angleToPlayer,
           this.assets,
           true
         )
@@ -466,7 +467,7 @@ export class Boss extends Enemy {
     }
   }
   ancientPhase2(enemyBullets, player) {
-    if (this.attackTimer > 900) {
+    if (this.attackTimer > 700) {
       const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
       const spread = 0.25;
       const angles = [
@@ -480,7 +481,7 @@ export class Boss extends Enemy {
             this.x,
             this.y,
             this.damage,
-            200,
+            220,
             30,
             angle,
             this.assets,

@@ -108,6 +108,19 @@ export function getBossUpgradeChoices(level) {
 }
 
 export function applyBossUpgrade(game, upg) {
+  if (!game.player) return;
+  if (!game.hasOwnProperty("playerFireRate")) game.playerFireRate = 300;
+  if (!game.hasOwnProperty("playerSpeed")) game.playerSpeed = 300;
+  if (!game.hasOwnProperty("maxPlayerHealth")) game.maxPlayerHealth = 10;
+  if (!game.hasOwnProperty("playerHealth")) game.playerHealth = 10;
+  if (!game.player.hasOwnProperty("damage")) game.player.damage = 5;
+  if (!game.player.hasOwnProperty("speed"))
+    game.player.speed = game.playerSpeed;
+  if (!game.player.hasOwnProperty("health"))
+    game.player.health = game.playerHealth;
+  if (!game.player.hasOwnProperty("maxHealth"))
+    game.player.maxHealth = game.maxPlayerHealth;
+
   switch (upg.name) {
     case "Overcharged Blaster":
       game.playerFireRate = Math.floor(game.playerFireRate * 0.5);
